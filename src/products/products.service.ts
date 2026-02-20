@@ -51,23 +51,39 @@ export class ProductsService {
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const { limit = 10, offset = 0, gender = '' } = paginationDto;
+    const { limit = 10, offset = 0, gender = '', size = '', tag = '', sortBy = '', sortOrder = 'ASC' } = paginationDto;
 
-    const products = await this.productRepository.find({
-      take: limit,
-      skip: offset,
-      relations: {
-        images: true,
-      },
-      order: {
-        id: 'ASC',
-      },
-      where: gender ? [{ gender }, { gender: 'unisex' }] : {},
-    });
+    const qb = this.productRepository
+      .createQueryBuilder('product')
+      .leftJoinAndSelect('product.images', 'images')
+      .take(limit)
+      .skip(offset);
 
-    const totalProducts = await this.productRepository.count({
-      where: gender ? [{ gender }, { gender: 'unisex' }] : {},
-    });
+    if (sortBy && ['price', 'stock'].includes(sortBy)) {
+      qb.orderBy(`product.${sortBy}`, sortOrder);
+      qb.addOrderBy('product.id', 'ASC');
+    } else {
+      qb.orderBy('product.id', 'ASC');
+    }
+
+    if (gender) {
+      qb.andWhere('(product.gender = :gender OR product.gender = :unisex)', {
+        gender,
+        unisex: 'unisex',
+      });
+    }
+
+    if (size) {
+      const sizes = size.split(',').map((s) => s.trim());
+      qb.andWhere('product.sizes && :sizes', { sizes });
+    }
+
+    if (tag) {
+      const tags = tag.split(',').map((t) => t.trim().toLowerCase());
+      qb.andWhere('product.tags && :tags', { tags });
+    }
+
+    const [products, totalProducts] = await qb.getManyAndCount();
 
     return {
       count: totalProducts,
@@ -77,6 +93,15 @@ export class ProductsService {
         images: product.images.map((img) => img.url),
       })),
     };
+  }
+
+  async getAvailableTags(): Promise<string[]> {
+    const result = await this.productRepository
+      .createQueryBuilder('product')
+      .select('DISTINCT unnest(product.tags)', 'tag')
+      .orderBy('tag', 'ASC')
+      .getRawMany();
+    return result.map((r) => r.tag);
   }
 
   async findOne(term: string) {

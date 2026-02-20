@@ -45,6 +45,11 @@ export class ProductsController {
     return this.productsService.findAll(paginationDto);
   }
 
+  @Get('tags')
+  getAvailableTags() {
+    return this.productsService.getAvailableTags();
+  }
+
   @Get(':term')
   findOne(@Param('term') term: string) {
     return this.productsService.findOnePlain(term);
