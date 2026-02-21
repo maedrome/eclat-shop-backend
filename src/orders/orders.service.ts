@@ -121,7 +121,7 @@ export class OrdersService {
     // PayPhone call is outside the transaction — if it fails, the order
     // stays PENDING and can be retried or cleaned up later.
     const amountInCents = Math.round(totalAmount * 100);
-    const responseUrl = `${this.frontendUrl}/#/payment-result`;
+    const responseUrl = `${this.frontendUrl}/payment-result`;
 
     const paymentResult = await this.paymentsService.preparePayment({
       amount: amountInCents,
